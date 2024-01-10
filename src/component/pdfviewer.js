@@ -4,14 +4,17 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "./style.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-// Your PDF.js worker source
+// define worker source for pdfjs
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
+// file drop zone component
 const FileDropZone = ({ onFileDrop }) => {
+  // for handling dropped files
   const onDrop = (acceptedFiles) => {
     onFileDrop(acceptedFiles);
   };
 
+  //dropzone functionality
   const { getRootProps, getInputProps, open } = useDropzone({
     onDrop,
     noClick: true,
@@ -37,19 +40,19 @@ const FileDropZone = ({ onFileDrop }) => {
   );
 };
 
+// pdf viewer and text extractor conpoment
 const PdfViewerAndTextExtractor = () => {
+  // state variable
   const [pdfFile, setPdfFile] = useState(null);
   const [numPages, setNumPages] = useState(null);
-  const [extractedText, setExtractedText] = useState([]);
-  const [displayText, setDisplayText] = useState(false);
   const [fileName, setFileName] = useState("");
   const [selectedOptions, setSelectedOptions] = useState([]);
 
+  // file drop zone handler
   const onFileDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
     if (file && file.size <= 200 * 1024 * 1024) {
       setPdfFile(URL.createObjectURL(file));
-      setDisplayText(false);
       setFileName(file.name);
       const initialOptions = new Array(numPages).fill(0);
       setSelectedOptions(initialOptions);
@@ -57,53 +60,26 @@ const PdfViewerAndTextExtractor = () => {
       alert("Please upload a file up to 200MB.");
     }
   };
-
+  // pdf doc load success
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
-    setExtractedText(new Array(numPages).fill(""));
   };
 
-  const extractTextFromPDF = async () => {
-    if (!pdfFile) return;
-
-    const loadingTask = pdfjs.getDocument(pdfFile);
-    const pdf = await loadingTask.promise;
-
-    let allExtractedText = [];
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const text = textContent.items.map((textItem) => textItem.str).join(" ");
-
-      allExtractedText.push(text);
-    }
-
-    setExtractedText(allExtractedText);
-  };
-
-  const toggleDisplayText = () => {
-    setDisplayText(!displayText);
-
-    if (!displayText) {
-      extractTextFromPDF();
-    }
-  };
-
+  // Handle option change for each page
   const handleOptionChange = (pageNum, option) => {
     const updatedOptions = [...selectedOptions];
     updatedOptions[pageNum - 1] = option;
     setSelectedOptions(updatedOptions);
   };
 
+  // Remove uploaded file and reset state
   const removeUploadedFile = () => {
     setPdfFile(null);
     setNumPages(null);
-    setExtractedText([]);
     setFileName("");
     setSelectedOptions([]);
   };
-
+//  render the websirte
   return (
     <div className="container">
       <h1>PDF Viewer and Text Extractor</h1>
@@ -122,8 +98,24 @@ const PdfViewerAndTextExtractor = () => {
           <Document file={pdfFile} onLoadSuccess={onDocumentLoadSuccess}>
             {Array.from(new Array(numPages), (el, index) => (
               <div key={`page_${index + 1}`}>
-                <Page key={`page_${index + 1}`} pageNumber={index + 1} scale={0.5} />
+                <div className="pdf-page">
+                  <Page
+                    key={`page_${index + 1}`}
+                    pageNumber={index + 1}
+                    scale={0.5}
+                  />
+                </div>
                 <div className="radio-options">
+                  <input
+                    type="radio"
+                    id={`selectImage_${index}`}
+                    name={`options_${index}`}
+                    value="selectImage"
+                    checked={selectedOptions[index] === 3}
+                    onChange={() => handleOptionChange(index + 1, 3)}
+                  />
+                  <label htmlFor={`selectImage_${index}`}>Select Image</label>
+                  <br />
                   <input
                     type="radio"
                     id={`noText_${index}`}
@@ -133,6 +125,7 @@ const PdfViewerAndTextExtractor = () => {
                     onChange={() => handleOptionChange(index + 1, 0)}
                   />
                   <label htmlFor={`noText_${index}`}>No Text</label>
+                  <br />
 
                   <input
                     type="radio"
@@ -142,44 +135,16 @@ const PdfViewerAndTextExtractor = () => {
                     checked={selectedOptions[index] === 1}
                     onChange={() => handleOptionChange(index + 1, 1)}
                   />
-                  <label htmlFor={`useExtractedText_${index}`}>Use Extracted Text</label>
+                  <label htmlFor={`useExtractedText_${index}`}>
+                    Use Extracted Text
+                  </label>
+                  <br />
 
-                  <input
-                    type="radio"
-                    id={`customPrompt_${index}`}
-                    name={`options_${index}`}
-                    value="customPrompt"
-                    checked={selectedOptions[index] === 2}
-                    onChange={() => handleOptionChange(index + 1, 2)}
-                  />
-                  <label htmlFor={`customPrompt_${index}`}>Use Custom Prompt</label>
+                  <br />
                 </div>
               </div>
             ))}
           </Document>
-        </div>
-      )}
-      {pdfFile && !displayText && (
-        <div className="text-extraction">
-          <input
-            type="radio"
-            id="displayText"
-            name="displayText"
-            value="displayText"
-            checked={displayText}
-            onChange={toggleDisplayText}
-          />
-          <label htmlFor="displayText">Display Extracted Text</label>
-        </div>
-      )}
-      {displayText && (
-        <div className="extracted-text">
-          {extractedText.map((text, index) => (
-            <div key={`text_${index}`}>
-              <p>Page {index + 1} Text:</p>
-              <p>{text}</p>
-            </div>
-          ))}
         </div>
       )}
     </div>
